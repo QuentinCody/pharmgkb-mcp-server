@@ -66,21 +66,6 @@ export function registerClinicalAnnotations(
                     .describe(
                         "Evidence level filter: 1A (highest, CPIC guideline), 1B, 2A, 2B, 3, 4 (lowest)",
                     ),
-                offset: z
-                    .coerce.number()
-                    .int()
-                    .min(0)
-                    .default(0)
-                    .optional()
-                    .describe("Pagination offset (default: 0)"),
-                max: z
-                    .coerce.number()
-                    .int()
-                    .positive()
-                    .max(100)
-                    .default(25)
-                    .optional()
-                    .describe("Maximum results per page (default: 25, max: 100)"),
             },
         },
         async (rawArgs, extra) => {
@@ -90,22 +75,18 @@ export function registerClinicalAnnotations(
                     gene,
                     drug,
                     level,
-                    offset = 0,
-                    max = 25,
                 } = rawArgs as {
                     gene?: string;
                     drug?: string;
                     level?: string;
-                    offset?: number;
-                    max?: number;
                 };
 
-                if (!gene && !drug && !level) {
+                if (!gene && !drug) {
                     return {
                         content: [
                             {
                                 type: "text" as const,
-                                text: "Error: At least one filter must be provided: gene, drug, or level.",
+                                text: "Error: At least one filter must be provided: gene or drug.",
                             },
                         ],
                         isError: true,
@@ -114,20 +95,15 @@ export function registerClinicalAnnotations(
                             error: {
                                 code: "INVALID_ARGUMENTS",
                                 message:
-                                    "At least one filter must be provided: gene, drug, or level.",
+                                    "At least one filter must be provided: gene or drug.",
                             },
                         },
                     };
                 }
 
-                const params: Record<string, unknown> = {
-                    view: "max",
-                    offset,
-                    max,
-                };
+                const params: Record<string, unknown> = {};
                 if (gene) params["location.genes.symbol"] = gene;
                 if (drug) params["relatedChemicals.name"] = drug;
-                if (level) params.level = level;
 
                 const response = await pharmgkbFetch(
                     "/data/clinicalAnnotation",
@@ -142,7 +118,14 @@ export function registerClinicalAnnotations(
                 }
 
                 const json = (await response.json()) as PharmGKBResponse;
-                const annotations = json.data ?? [];
+                let annotations = json.data ?? [];
+
+                // Client-side level filter (API uses 'levelOfEvidence', not filterable server-side)
+                if (level) {
+                    annotations = annotations.filter(
+                        (a) => (a as any).levelOfEvidence === level,
+                    );
+                }
 
                 const filterDesc = [
                     gene ? `gene=${gene}` : "",
@@ -175,8 +158,6 @@ export function registerClinicalAnnotations(
                 const responseData = {
                     filters: { gene, drug, level },
                     total: annotations.length,
-                    offset,
-                    max,
                     results: annotations,
                     fetched_at: new Date().toISOString(),
                 };
@@ -227,7 +208,7 @@ export function registerClinicalAnnotations(
                         a.relatedChemicals?.map((c) => c.name).join(", ") ?? "?";
                     const phenotypes =
                         a.phenotypes?.map((p) => p.name).join(", ") ?? "";
-                    return `[Level ${a.level ?? "?"}] ${genes} / ${drugs}${phenotypes ? ` - ${phenotypes}` : ""} (ID: ${a.id ?? "?"})`;
+                    return `[Level ${(a as any).levelOfEvidence ?? "?"}] ${genes} / ${drugs}${phenotypes ? ` - ${phenotypes}` : ""} (ID: ${a.id ?? "?"})`;
                 });
 
                 const text =
