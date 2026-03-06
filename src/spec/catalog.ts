@@ -5,7 +5,7 @@
  * genes, drugs, variants, clinical, labels, pathways, literature, phenotypes, automated_annotations
  *
  * PharmGKB response format: { data: [...], status: "success" }
- * Common query params: view (min, max, base), offset, max (page size)
+ * Many list endpoints support view (min, max, base) plus offset/max pagination.
  */
 
 import type { ApiCatalog } from "@bio-mcp/shared/codemode/catalog";
@@ -20,10 +20,11 @@ export const pharmgkbCatalog: ApiCatalog = {
         "- All list responses are wrapped in { data: [...], status: 'success' }. Access results via result.data\n" +
         "- Detail responses return { data: {object}, status: 'success' }\n" +
         "- Use 'view' param to control detail level: 'min' (IDs only), 'base' (default), 'max' (all cross-references)\n" +
-        "- Pagination uses 'offset' (0-based) and 'max' (page size, default varies by endpoint)\n" +
+        "- Many list endpoints use 'offset' (0-based) and 'max' (page size, default varies by endpoint)\n" +
         "- PharmGKB accession IDs look like PA12345 (genes), PA123456789 (drugs), PA166100001 (annotations)\n" +
         "- Gene symbols are case-sensitive (e.g., CYP2D6 not cyp2d6)\n" +
         "- Drug names are case-insensitive for search\n" +
+        "- /data/clinicalAnnotation does not support server-side evidence-level filtering; use levelOfEvidence client-side when needed\n" +
         "- Clinical annotation levels: 1A, 1B, 2A, 2B, 3, 4 (1A = highest evidence)",
     endpoints: [
         // === Genes ===
@@ -131,10 +132,7 @@ export const pharmgkbCatalog: ApiCatalog = {
             queryParams: [
                 { name: "location.genes.symbol", type: "string", required: false, description: "Filter by gene symbol (e.g., CYP2D6)" },
                 { name: "relatedChemicals.name", type: "string", required: false, description: "Filter by drug name (e.g., codeine)" },
-                { name: "level", type: "string", required: false, description: "Evidence level: 1A, 1B, 2A, 2B, 3, 4" },
                 { name: "view", type: "string", required: false, description: "Detail level: min, base, max", default: "base" },
-                { name: "offset", type: "number", required: false, description: "Pagination offset", default: 0 },
-                { name: "max", type: "number", required: false, description: "Max results per page", default: 25 },
             ],
         },
         {

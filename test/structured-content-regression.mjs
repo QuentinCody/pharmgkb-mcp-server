@@ -33,6 +33,19 @@ function assertContains(filePath, haystack, needle, testName) {
   }
 }
 
+function assertNotContains(filePath, haystack, needle, testName) {
+  totalTests++;
+  if (!haystack.includes(needle)) {
+    console.log(`${GREEN}✓${RESET} ${testName}`);
+    passedTests++;
+  } else {
+    console.log(`${RED}✗${RESET} ${testName}`);
+    console.log(`  Unexpected token: ${needle}`);
+    console.log(`  File: ${filePath}`);
+    failedTests++;
+  }
+}
+
 function readFile(relPath) {
   const absPath = path.resolve(SERVER_ROOT, relPath);
   return fs.readFileSync(absPath, 'utf8');
@@ -99,6 +112,62 @@ assertContains('src/spec/catalog.ts', catalogContent, '/data/gene', 'catalog.ts 
 assertContains('src/spec/catalog.ts', catalogContent, '/data/drug', 'catalog.ts has drug endpoints');
 assertContains('src/spec/catalog.ts', catalogContent, '/data/clinicalAnnotation', 'catalog.ts has clinical annotation endpoints');
 assertContains('src/spec/catalog.ts', catalogContent, '/data/variant', 'catalog.ts has variant endpoints');
+
+const clinicalAnnotationsContent = readFile('src/tools/clinical-annotations.ts');
+assertContains(
+  'src/tools/clinical-annotations.ts',
+  clinicalAnnotationsContent,
+  'annotations = annotations.filter',
+  'clinical-annotations.ts filters evidence level client-side'
+);
+assertContains(
+  'src/tools/clinical-annotations.ts',
+  clinicalAnnotationsContent,
+  'levelOfEvidence === level',
+  'clinical-annotations.ts compares against levelOfEvidence'
+);
+assertNotContains(
+  'src/tools/clinical-annotations.ts',
+  clinicalAnnotationsContent,
+  'params["level"]',
+  'clinical-annotations.ts does not send level as an API query param'
+);
+assertNotContains(
+  'src/tools/clinical-annotations.ts',
+  clinicalAnnotationsContent,
+  'params["offset"]',
+  'clinical-annotations.ts does not send offset to clinicalAnnotation'
+);
+assertNotContains(
+  'src/tools/clinical-annotations.ts',
+  clinicalAnnotationsContent,
+  'params["max"]',
+  'clinical-annotations.ts does not send max to clinicalAnnotation'
+);
+
+const clinicalAnnotationEndpointStart = catalogContent.indexOf('path: "/data/clinicalAnnotation"');
+const clinicalAnnotationEndpointEnd = catalogContent.indexOf('path: "/data/clinicalAnnotation/{id}"');
+const clinicalAnnotationEndpoint = clinicalAnnotationEndpointStart >= 0 && clinicalAnnotationEndpointEnd > clinicalAnnotationEndpointStart
+  ? catalogContent.slice(clinicalAnnotationEndpointStart, clinicalAnnotationEndpointEnd)
+  : '';
+assertNotContains(
+  'src/spec/catalog.ts',
+  clinicalAnnotationEndpoint,
+  '{ name: "level"',
+  'catalog.ts does not advertise unsupported level filter for clinical annotations'
+);
+assertNotContains(
+  'src/spec/catalog.ts',
+  clinicalAnnotationEndpoint,
+  '{ name: "offset"',
+  'catalog.ts does not advertise unsupported offset pagination for clinical annotations'
+);
+assertNotContains(
+  'src/spec/catalog.ts',
+  clinicalAnnotationEndpoint,
+  '{ name: "max"',
+  'catalog.ts does not advertise unsupported max pagination for clinical annotations'
+);
 
 // Verify HTTP client
 const httpContent = readFile('src/lib/http.ts');
